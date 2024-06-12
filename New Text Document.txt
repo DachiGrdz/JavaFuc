@@ -1,0 +1,330 @@
+package org.example.javafukx;
+
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.chart.PieChart;
+import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+import org.example.javafukx.Product;
+
+import java.sql.*;
+import java.util.*;
+
+public class ProductApp extends Application {
+
+    private TableView<Product> table;
+    private PieChart pieChart;
+
+    @Override
+    public void start(Stage primaryStage) {
+        // Create UI components
+        TextField nameField = new TextField();
+        TextField quantityField = new TextField();
+        TextField priceField = new TextField();
+        Button addButton = new Button("Add Product");
+        table = new TableView<>();
+        pieChart = new PieChart();
+
+        // Add columns to the table
+        TableColumn<Product, String> nameColumn = new TableColumn<>("Name");
+        TableColumn<Product, Integer> quantityColumn = new TableColumn<>("Quantity");
+        TableColumn<Product, Double> priceColumn = new TableColumn<>("Price");
+
+        table.getColumns().addAll(nameColumn, quantityColumn, priceColumn);
+
+        // Layout
+        VBox root = new VBox(
+                new HBox(new Label("Name:"), nameField),
+                new HBox(new Label("Quantity:"), quantityField),
+                new HBox(new Label("Price:"), priceField),
+                addButton,
+                table,
+                pieChart
+        );
+
+        // Scene
+        Scene scene = new Scene(root, 600, 400);
+
+        // Show the stage
+        primaryStage.setScene(scene);
+        primaryStage.setTitle("Product Management App");
+        primaryStage.show();
+
+        // Button click event
+        addButton.setOnAction(event -> {
+            String name = nameField.getText();
+            int quantity = Integer.parseInt(quantityField.getText());
+            double price = Double.parseDouble(priceField.getText());
+            addProductToDatabase(name, quantity, price);
+            updateTableAndPieChart();
+        });
+
+        // Initial load of table and pie chart data
+        updateTableAndPieChart();
+    }
+
+    private void addProductToDatabase(String name, int quantity, double price) {
+        try (Connection connection = DatabaseUtil.getConnection()) {
+            String sql = "INSERT INTO products (name, quantity, price) VALUES (?, ?, ?)";
+            PreparedStatement statement = connection.prepareStatement(sql);
+            statement.setString(1, name);
+            statement.setInt(2, quantity);
+            statement.setDouble(3, price);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updateTableAndPieChart() {
+        List<Product> products = getProductsFromDatabase();
+        table.getItems().setAll(products);
+        updatePieChart(products);
+    }
+
+    private List<Product> getProductsFromDatabase() {
+        List<Product> products = new ArrayList<>();
+        try (Connection connection = DatabaseUtil.getConnection()) {
+            String sql = "SELECT * FROM products";
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery(sql);
+
+            while (resultSet.next()) {
+                int id = resultSet.getInt("id");
+                String name = resultSet.getString("name");
+                int quantity = resultSet.getInt("quantity");
+                double price = resultSet.getDouble("price");
+                products.add(new Product(id, name, quantity, price));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return products;
+    }
+
+    private void updatePieChart(List<Product> products) {
+        Map<String, Integer> productQuantities = new HashMap<>();
+        for (Product product : products) {
+            productQuantities.put(product.getName(), productQuantities.getOrDefault(product.getName(), 0) + product.getQuantity());
+        }
+
+        pieChart.getData().clear();
+        for (Map.Entry<String, Integer> entry : productQuantities.entrySet()) {
+            pieChart.getData().add(new PieChart.Data(entry.getKey(), entry.getValue()));
+        }
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+package org.example.javafukx;
+
+public class Product {
+    private int id;
+    private String name;
+    private int quantity;
+    private double price;
+
+    // Constructor
+    public Product(int id, String name, int quantity, double price) {
+        this.id = id;
+        this.name = name;
+        this.quantity = quantity;
+        this.price = price;
+    }
+
+    // Getters and Setters
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public int getQuantity() { return quantity; }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
+
+    public double getPrice() { return price; }
+    public void setPrice(double price) { this.price = price; }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package org.example.javafukx;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+public class DatabaseUtil {
+
+    public static Connection getConnection() throws SQLException {
+        String url = "jdbc:mysql://localhost:3306/product"; // Replace 'store' with your database name
+        String username = "Product"; // Replace with your database username
+        String password = "Yes"; // Replace with your database password
+        return DriverManager.getConnection(url, username, password);
+    }
+}
+
+
+
+
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example</groupId>
+    <artifactId>ProductApp</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <javafx.version>17.0.1</javafx.version>
+    </properties>
+
+
+    <dependencies>
+        <!-- JavaFX Dependencies -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>17.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>17.0.2</version>
+        </dependency>
+
+        <!-- MySQL JDBC Driver -->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.30</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.6</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <mainClass>ProductApp</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+<!--    <dependencies>-->
+<!--        &lt;!&ndash; JavaFX Dependencies &ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>org.openjfx</groupId>-->
+<!--            <artifactId>javafx-controls</artifactId>-->
+<!--            <version>17.0.1</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>org.openjfx</groupId>-->
+<!--            <artifactId>javafx-fxml</artifactId>-->
+<!--            <version>17.0.1</version>-->
+<!--        </dependency>-->
+
+<!--        <dependency>-->
+<!--            <groupId>mysql</groupId>-->
+<!--            <artifactId>mysql-connector-java</artifactId>-->
+<!--            <version>8.0.28</version> &lt;!&ndash; or the latest version &ndash;&gt;-->
+<!--        </dependency>-->
+<!--    </dependencies>-->
+
+<!--    <build>-->
+<!--        <plugins>-->
+<!--            <plugin>-->
+<!--                <groupId>org.apache.maven.plugins</groupId>-->
+<!--                <artifactId>maven-compiler-plugin</artifactId>-->
+<!--                <version>3.8.1</version>-->
+<!--                <configuration>-->
+<!--                    <source>17</source>-->
+<!--                    <target>17</target>-->
+<!--                </configuration>-->
+<!--            </plugin>-->
+
+<!--            <plugin>-->
+<!--                <groupId>org.openjfx</groupId>-->
+<!--                <artifactId>javafx-maven-plugin</artifactId>-->
+<!--                <version>0.0.6</version>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <goals>-->
+<!--                            <goal>run</goal>-->
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--                <configuration>-->
+<!--                    <mainClass>com.example.ProductApp</mainClass>-->
+<!--                </configuration>-->
+<!--            </plugin>-->
+<!--        </plugins>-->
+<!--    </build>-->
+</project>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
